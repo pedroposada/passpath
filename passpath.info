@@ -1,0 +1,5 @@
+name = Password protect drupal paths
+description = Password protect access to specific drupal paths for anonymous users.
+package = Access Control
+core = 7.x
+dependencies[] = ctools

@@ -1,0 +1,105 @@
+<?php
+
+/***********************
+ *  DRUPAL HOOKS
+ ***********************/
+
+/**
+ * Implements hook_menu()
+ */
+function passpath_menu() {
+  $items = array();
+  
+  $items['admin/config/passpath'] = array(
+    'title' => 'Password Protect Paths', 
+    'description' => 'Administer password protected paths.', 
+    'position' => 'left', 
+    'weight' => -30, 
+    'page callback' => 'system_admin_menu_block_page', 
+    'access arguments' => array('administer paths'),
+    'file path' => drupal_get_path('module', 'system'),
+    'file' => 'system.admin.inc' 
+  );
+  $items['admin/config/passpath/manage'] = array(
+    'title' => 'Password Protect Paths',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('passpath_admin_form'),
+    'access arguments' => array('administer paths'),
+    'file' => 'passpath.admin.inc',
+  );
+  $items['admin/config/passpath/manage/features'] = array(
+    'title' => 'Password Protect Paths',
+    'description' => 'Administer password protected paths.', 
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0, 
+  );
+  
+  return $items;
+}
+
+/**
+ * Implements hook_permission()
+ */
+function passpath_permission() {
+  return array(
+    'administer paths' => array(
+      'title' => t('Administer paths and passwords'),
+      'description' => t('Add/remove/edit password protected paths.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_theme($existing, $type, $theme, $path)
+ */
+function passpath_theme($existing, $type, $theme, $path) {
+  return array(
+    'passpath_admin_form' => array(
+      'variables' => array(),
+    ),
+  );
+}
+
+
+/***********************
+ *  THEME HOOKS
+ ***********************/
+/**
+ * theme_passpath_admin_form admin form
+ */
+function theme_passpath_admin_form($variables) {
+  drupal_add_js(drupal_get_path('module', 'gs_helper') . '/js/gs_helper.forms.js');
+  $output = '';
+  $form = $variables['form'];
+  $rows = $weights = array();
+  foreach (element_children($form['tabs']) as $id) {
+    $form['tabs'][$id]['weight']['#attributes']['class'] = array('prod-tabs-item-weight');
+    $rows[] = array(
+      'data' => array(
+        '', // dargging handle
+        drupal_render($form['tabs'][$id]['path']) .
+        drupal_render($form['tabs'][$id]['pass']) .
+        drupal_render($form['tabs'][$id]['expire']),
+        
+        drupal_render($form['tabs'][$id]['remove']),
+        
+        drupal_render($form['tabs'][$id]['weight']),
+      ),
+      'class' => array('draggable'),
+    );
+    $weights[] = $form['tabs'][$id]['weight']['#value'];
+  }
+  // table headers
+  $header = array(
+    '', // dragging handle
+    t('Info'), 
+    t('Operations'),
+    t('Weight'),
+  );
+  $table_id = 'passpath-form-wrapper-table';
+  array_multisort($weights, $rows);
+  $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => $table_id)));
+  $output .= drupal_render_children($form);
+  drupal_add_tabledrag($table_id, 'order', 'sibling', 'passpath-form-wrapper-weight');
+  return $output;
+}
