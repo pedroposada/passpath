@@ -33,6 +33,20 @@ function passpath_menu() {
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => 0, 
   );
+  $items['passpath/%ctools_js/protect'] = array(
+    'title' => 'Password Protected Page',
+    'page callback' => 'passpath_protect',
+    'page arguments' => array(1),  
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['passpath/%ctools_js/protect/popup'] = array(
+    'title' => 'Password Protected Popup',
+    'page callback' => 'passpath_protect_popup',
+    'page arguments' => array(1),  
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
   
   return $items;
 }
@@ -62,27 +76,82 @@ function passpath_theme($existing, $type, $theme, $path) {
 
 
 /***********************
+ *  MENU CALLBACKS
+ ***********************/
+
+/**
+ * /passpath/%ctools_js/protect
+ */
+function passpath_protect($js = NULL) {
+  $output = '';
+  
+  ctools_include('ajax');
+  ctools_include('modal');
+  ctools_modal_add_js();
+  $custom_style = array(
+    'passpath-modal-style' => array(
+      'modalSize' => array(
+        'type' => 'fixed',
+        'width' => 425,
+        'height' => 250,
+      ),
+      'animation' => 'fadeIn',
+    ),
+  );
+  drupal_add_js($custom_style, 'setting');
+  $output .= ctools_modal_text_button(t('Click Here'), 'passpath/nojs/protect/form', t('Pop me up'), 'ctools-modal-passpath-modal-style');
+  $output .= '<div id="modal-message">&nbsp</div>';
+  ctools_include('plugins');
+  
+  return $output;
+}
+/**
+ * /passpath/%ctools_js/protect/popup
+ */
+function passpath_protect_popup($js = NULL) {
+  $output = array();
+  
+  // degrade to no js
+  if(!$js) {
+    return drupal_get_form('passpath_protect_form');
+  }
+  // continue
+  ctools_include('modal');
+  ctools_include('ajax');
+  $form_state = array(
+    'title' => t('This page is password protected!'),
+    'ajax' => TRUE,
+  );
+  $output[] = ctools_modal_form_wrapper('passpath_protect_form', $form_state);
+  if (!empty($form_state['executed'])) {
+    // We'll just overwrite the form output if it was successful.
+    $output = array();
+    $output[] = ctools_modal_command_dismiss(t('Success!'));
+    // $output[] = ctools_ajax_command_redirect($url, $delay = 0, $urloptions = array());
+  }
+  
+  return ajax_render($output);
+}
+
+/***********************
  *  THEME HOOKS
  ***********************/
 /**
  * theme_passpath_admin_form admin form
  */
 function theme_passpath_admin_form($variables) {
-  drupal_add_js(drupal_get_path('module', 'gs_helper') . '/js/gs_helper.forms.js');
   $output = '';
   $form = $variables['form'];
   $rows = $weights = array();
   foreach (element_children($form['tabs']) as $id) {
-    $form['tabs'][$id]['weight']['#attributes']['class'] = array('prod-tabs-item-weight');
+    $form['tabs'][$id]['weight']['#attributes']['class'] = array('passpath-form-wrapper-weight');
     $rows[] = array(
       'data' => array(
         '', // dargging handle
         drupal_render($form['tabs'][$id]['path']) .
         drupal_render($form['tabs'][$id]['pass']) .
         drupal_render($form['tabs'][$id]['expire']),
-        
         drupal_render($form['tabs'][$id]['remove']),
-        
         drupal_render($form['tabs'][$id]['weight']),
       ),
       'class' => array('draggable'),
@@ -102,4 +171,25 @@ function theme_passpath_admin_form($variables) {
   $output .= drupal_render_children($form);
   drupal_add_tabledrag($table_id, 'order', 'sibling', 'passpath-form-wrapper-weight');
   return $output;
+}
+
+/**************************
+ *  FORMS
+ **************************/
+
+/**
+ * password protection form
+ */
+
+function passpath_protect_form($form, &$form_alter) {
+  $form['password'] = array(
+    '#type' => 'password',
+    '#title' => t('Password'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  
+  return $form;
 }
