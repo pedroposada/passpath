@@ -8,7 +8,7 @@ function passpath_admin_form($form, &$form_state) {
   $form['#tree'] = TRUE;
   $form['#prefix'] = '<div id="passpath-form-wrapper">';
   $form['#suffix'] = '</div>';
-  $tabsvals = variable_get('passpath_admin_form_values');
+  $tabsvals = variable_get('passpath_protected_paths', array());
   // get current number of headlines
   $num = isset($tabsvals) ? count($tabsvals) : 1;
   if (isset($form_state['storage']['extraheadlines'])) {
@@ -119,7 +119,7 @@ function passpath_admin_form_submit($form, &$form_state) {
     $weights = $values = array();
     foreach ($form_state['values']['tabs'] as $key => $value) {
       if (!in_array($key, $form_state['storage']['remove'])) {
-        $values[] = $value;
+        $values[$value['path']] = $value;
         $weights[] = $value['weight'];
       }
     }
@@ -128,7 +128,7 @@ function passpath_admin_form_submit($form, &$form_state) {
   }
   // save
   if ($form_state['triggering_element']['#name'] == 'save') {
-    variable_set('passpath_admin_form_values', $values);
+    variable_set('passpath_protected_paths', $values);
     drupal_set_message("Values were saved successfully.");
     unset($form_state['storage']['extraheadlines']);
   }

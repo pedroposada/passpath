@@ -75,6 +75,21 @@ function passpath_theme($existing, $type, $theme, $path) {
 }
 
 
+/**
+ * Implements hook_page_delivery_callback_alter()
+ */
+function passpath_page_delivery_callback_alter(&$callback) {
+
+  switch (TRUE) {
+    case user_is_logged_in():
+      break;
+    case array_key_exists(current_path(), variable_get('passpath_protected_paths', array())):
+      drupal_goto('passpath/nojs/protect', array('query' => array('destination' => current_path())));
+      break;
+  }
+  
+}
+
 /***********************
  *  MENU CALLBACKS
  ***********************/
