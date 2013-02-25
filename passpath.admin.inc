@@ -88,16 +88,16 @@ function passpath_admin_form_validate($form, &$form_state) {
     foreach ($form_state['values']['tabs'] as $key => $value) {
       if (!in_array($key, $form_state['storage']['remove'])) {
         if (empty($value['path'])) {
-          form_error($form['tabs'][$key]['tabtitle'], "Path is required.");
+          form_error($form['tabs'][$key]['tabtitle'], t("Path is required."));
         }
         if (!valid_url($value['path'])) {
-          form_error($form['tabs'][$key]['path'], "Invalid path.");
+          form_error($form['tabs'][$key]['path'], t("Invalid path."));
         }
         if (empty($value['pass'])) {
-          form_error($form['tabs'][$key]['pass'], "Password is required.");
+          form_error($form['tabs'][$key]['pass'], t("Password is required."));
         }
         if (!ctype_digit($value['expire'])) {
-          form_error($form['tabs'][$key]['expire'], "Expiration must be a number of hours.");
+          form_error($form['tabs'][$key]['expire'], t("Enter a number of hours."));
         }
       }
     }
@@ -112,13 +112,14 @@ function passpath_admin_form_submit($form, &$form_state) {
   if (strstr($form_state['triggering_element']['#name'],'remove_')) {
     $removed = $form_state['triggering_element']['#array_parents'][1];
     $form_state['storage']['remove'][] = $removed;
-    drupal_set_message(t("Changes made in this table will not be stored until the form is Saved."),'warning');
+    drupal_set_message(t("Changes will not be stored until the form is Saved."),'warning');
   }
   // preview, save
   if (in_array($form_state['triggering_element']['#name'],array('preview','save'))) {
     $weights = $values = array();
     foreach ($form_state['values']['tabs'] as $key => $value) {
       if (!in_array($key, $form_state['storage']['remove'])) {
+      	$value['pass'] = user_hash_password($value['pass']);
         $values[$value['path']] = $value;
         $weights[] = $value['weight'];
       }

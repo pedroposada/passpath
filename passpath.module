@@ -79,12 +79,15 @@ function passpath_theme($existing, $type, $theme, $path) {
  * Implements hook_page_delivery_callback_alter()
  */
 function passpath_page_delivery_callback_alter(&$callback) {
-
+	
+	$dest = current_path();
   switch (TRUE) {
     case user_is_logged_in():
       break;
-    case array_key_exists(current_path(), variable_get('passpath_protected_paths', array())):
-      drupal_goto('passpath/nojs/protect', array('query' => array('destination' => current_path())));
+    case array_key_exists($dest, variable_get('passpath_protected_paths', array())):
+			if (isset($_COOKIE["Drupal_visitor_passpath_expire_{$dest}"]) && ($_COOKIE["Drupal_visitor_passpath_expire_{$dest}"] < REQUEST_TIME)) {
+	      drupal_goto('passpath/nojs/protect', array('query' => array('destination' => $dest)));
+			}
       break;
   }
   
@@ -114,7 +117,8 @@ function passpath_protect($js = NULL) {
     ),
   );
   drupal_add_js($custom_style, 'setting');
-  $output .= ctools_modal_text_button(t('Click Here'), 'passpath/nojs/protect/form', t('Pop me up'), 'ctools-modal-passpath-modal-style');
+	$path = url('passpath/nojs/protect/form', array('query' => array('destination' => drupal_get_destination())));
+  $output .= ctools_modal_text_button(t('Click Here'), $path, t('Pop me up'), 'ctools-modal-passpath-modal-style');
   $output .= '<div id="modal-message">&nbsp</div>';
   ctools_include('plugins');
   
@@ -138,7 +142,7 @@ function passpath_protect_popup($js = NULL) {
     'ajax' => TRUE,
   );
   $output[] = ctools_modal_form_wrapper('passpath_protect_form', $form_state);
-  if (!empty($form_state['executed'])) {
+  if (isset($form_state['redirect']) && $form_state['redirect']) {
     // We'll just overwrite the form output if it was successful.
     $output = array();
     $output[] = ctools_modal_command_dismiss(t('Success!'));
@@ -207,4 +211,23 @@ function passpath_protect_form($form, &$form_alter) {
   );
   
   return $form;
+}
+function passpath_protect_form_validate(&$form, &$form_state) {
+	if (!drupal_strlen($form_state['values']['password'])) {
+		form_error($form['password'], t('Password is required'));
+	}
+	if (array_key_exists(drupal_get_destination(), variable_get('passpath_protected_paths', array()))) {
+		$paths = variable_get('passpath_protected_paths', array());
+		if (user_hash_password($form_state['values']['password']) != $paths[drupal_get_destination()]['password']) {
+			form_error($form['password'], t('Wrong password.'));
+		}
+	}
+}
+function passpath_protect_form_submit(&$form, &$form_state) {
+	if ($form_state['redirect'] = drupal_get_destination()) {
+		if (array_key_exists(drupal_get_destination(), variable_get('passpath_protected_paths', array()))) {
+			$paths = variable_get('passpath_protected_paths', array());
+			user_cookie_save(array("passpath_expire_{$form_state['redirect']}" => strtotime("+ {$paths[$form_state['redirect']]['expire']} hours")));
+		}
+	}
 }
