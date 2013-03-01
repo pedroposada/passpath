@@ -6,6 +6,6 @@ core = 7.x
 files[] = passpath.module
 files[] = passpath.admin.inc
 
-scripts[] = passpath.js
+stylesheets[all][] = passpath.css
 
-dependencies[] = ctools
+scripts[] = passpath.js
