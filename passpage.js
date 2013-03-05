@@ -1,5 +1,5 @@
 (function ($) {
-  Drupal.behaviors.passpath = {
+  Drupal.behaviors.passpage = {
     attach: function (context, settings) {
       
     }

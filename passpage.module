@@ -5,13 +5,33 @@
  ***********************/
 
 /**
+ * Implements hook_init()
+ */
+function passpage_init() {
+  $path = drupal_get_path_alias(current_path());
+  if (drupal_match_path($path, "passpage/protected")) {
+    $dest = drupal_get_destination();
+    $name = "Drupal_visitor_passpage_expire_{$dest['destination']}";
+    switch (TRUE) {
+      case !drupal_strlen($dest['destination']):
+      case !(isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): // expiration time reached.
+        break;
+      default:
+        drupal_goto($dest['destination']);
+        break;
+    }
+  }
+}
+ 
+ 
+/**
  * Implements hook_menu()
  */
-function passpath_menu() {
+function passpage_menu() {
   $items = array();
   
-  $items['admin/config/passpath'] = array(
-    'title' => 'Password Protect Paths', 
+  $items['admin/config/passpage'] = array(
+    'title' => 'Passphrase Protect Pages', 
     'description' => 'Administer password protected paths.', 
     'position' => 'left', 
     'weight' => -30, 
@@ -20,29 +40,29 @@ function passpath_menu() {
     'file path' => drupal_get_path('module', 'system'),
     'file' => 'system.admin.inc' 
   );
-  $items['admin/config/passpath/manage'] = array(
-    'title' => 'Password Protect Paths',
+  $items['admin/config/passpage/manage'] = array(
+    'title' => 'Protect Pages',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('passpath_admin_form'),
+    'page arguments' => array('passpage_admin_form'),
     'access arguments' => array('administer paths'),
-    'file' => 'passpath.admin.inc',
+    'file' => 'passpage.admin.inc',
   );
-  $items['admin/config/passpath/manage/features'] = array(
-    'title' => 'Password Protect Paths',
+  $items['admin/config/passpage/manage/features'] = array(
+    'title' => 'Protect Pages',
     'description' => 'Administer password protected paths.', 
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => 0, 
   );
-  $items['passpath/protected'] = array(
+  $items['passpage/protected'] = array(
     'title' => 'Protected Page',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('passpath_protect_form'),  
+    'page arguments' => array('passpage_protect_form'),  
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
-  $items['passpath/path/autocomplete'] = array(
+  $items['passpage/path/autocomplete'] = array(
     'title' => 'Path autocomplete',
-    'page callback' => 'passpath_path_autocomplete',
+    'page callback' => 'passpage_path_autocomplete',
     'access arguments' => array('administer paths'),
     'type' => MENU_CALLBACK,
   );
@@ -53,7 +73,7 @@ function passpath_menu() {
 /**
  * Implements hook_permission()
  */
-function passpath_permission() {
+function passpage_permission() {
   return array(
     'administer paths' => array(
       'title' => t('Administer paths and passwords'),
@@ -65,9 +85,9 @@ function passpath_permission() {
 /**
  * Implements hook_theme($existing, $type, $theme, $path)
  */
-function passpath_theme($existing, $type, $theme, $path) {
+function passpage_theme($existing, $type, $theme, $path) {
   return array(
-    'passpath_admin_form' => array(
+    'passpage_admin_form' => array(
       'render element' => 'form',
     ),
   );
@@ -77,24 +97,17 @@ function passpath_theme($existing, $type, $theme, $path) {
 /**
  * Implements hook_page_delivery_callback_alter()
  */
-function passpath_page_delivery_callback_alter(&$callback) {
-	$dest = drupal_get_path_alias(current_path());
-  $name = "Drupal_visitor_passpath_expire_{$dest}";
+function passpage_page_delivery_callback_alter(&$callback) {
+  $dest = drupal_get_path_alias(current_path());
+  $name = "Drupal_visitor_passpage_expire_{$dest}";
   switch (TRUE) {
-    case drupal_match_path($dest, "passpath/nojs/protect"): 
-      // stop infinite loop
+    case drupal_match_path($dest, "passpage/protected"): // stop infinite loop
+    case (isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): // do not ask for password if expiration time not reached yet.
+    case (isset($_COOKIE[$name]) && ($_COOKIE[$name] < 0)): // do not ask for password if expiration time is never.
+    case user_is_logged_in(): // anon users only
       break;
-    case user_is_logged_in():
-      // anon users only
-      break;
-    case (isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): 
-      // do not ask for password if expiration time not reached yet.
-      break;
-    case (isset($_COOKIE[$name]) && ($_COOKIE[$name] < 0)): 
-      // do not ask for password if expiration time is 0.
-      break;
-    case array_key_exists($dest, variable_get('passpath_protected_paths', array())):
-      drupal_goto('passpath/protected', array('query' => array('destination' => $dest)));
+    case array_key_exists($dest, variable_get('passpage_protected_paths', array())):
+      drupal_goto('passpage/protected', array('query' => array('destination' => $dest)));
       break;
   }
   
@@ -105,9 +118,9 @@ function passpath_page_delivery_callback_alter(&$callback) {
  ***********************/
 
 /**
- * passpath/path/autocomplete
+ * passpage/path/autocomplete
  */
-function passpath_path_autocomplete($string) {
+function passpage_path_autocomplete($string) {
   $matches = array();
   
   if (module_exists('path')) {
@@ -128,16 +141,16 @@ function passpath_path_autocomplete($string) {
  *  THEME HOOKS
  ***********************/
 /**
- * theme_passpath_admin_form admin form
+ * theme_passpage_admin_form admin form
  */
-function theme_passpath_admin_form($variables) {
-  $table_id = 'passpath-form-wrapper-table';
+function theme_passpage_admin_form($variables) {
+  $table_id = 'passpage-form-wrapper-table';
   $output = '';
   $form = $variables['form'];
   $output .= drupal_render($form['help']);
   $rows = $weights = array();
   foreach (element_children($form['tabs']) as $id) {
-    $form['tabs'][$id]['weight']['#attributes']['class'] = array('passpath-form-wrapper-weight');
+    $form['tabs'][$id]['weight']['#attributes']['class'] = array('passpage-form-wrapper-weight');
     $rows[] = array(
       'data' => array(
         '', // dargging handle
@@ -163,7 +176,7 @@ function theme_passpath_admin_form($variables) {
   array_multisort($weights, $rows);
   $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => $table_id)));
   $output .= drupal_render_children($form);
-  drupal_add_tabledrag($table_id, 'order', 'sibling', 'passpath-form-wrapper-weight');
+  drupal_add_tabledrag($table_id, 'order', 'sibling', 'passpage-form-wrapper-weight');
   return $output;
 }
 
@@ -172,11 +185,11 @@ function theme_passpath_admin_form($variables) {
  **************************/
 
 /**
- * password protection form
+ * passphrase protection form
  */
 
-function passpath_protect_form($form, &$form_state) {
-  $form['password'] = array(
+function passpage_protect_form($form, &$form_state) {
+  $form['passphrase'] = array(
     '#type' => 'password',
     '#title' => t('Passphrase'),
     '#description' => t('Enter passphrase to be able to access this page.'),
@@ -189,31 +202,32 @@ function passpath_protect_form($form, &$form_state) {
   
   return $form;
 }
-function passpath_protect_form_validate(&$form, &$form_state) {
-	if (!drupal_strlen($form_state['values']['password'])) {
-		form_error($form['password'], t('Password is required'));
-	}
+function passpage_protect_form_validate(&$form, &$form_state) {
+  if (!drupal_strlen($form_state['values']['passphrase'])) {
+    form_error($form['passphrase'], t('Password is required'));
+  }
   $dest = drupal_get_destination();
-	if (array_key_exists($dest['destination'], variable_get('passpath_protected_paths', array()))) {
+  if (array_key_exists($dest['destination'], variable_get('passpage_protected_paths', array()))) {
     require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
-		$paths = variable_get('passpath_protected_paths', array());
+    $paths = variable_get('passpage_protected_paths', array());
     $original->pass = $paths[$dest['destination']]['pass'];
-		if ($paths[$dest['destination']]['pass'] != $form_state['values']['password']) {
-			form_error($form['password'], t('Wrong passphrase.'));
-		}
-	}
+    if ($paths[$dest['destination']]['pass'] != $form_state['values']['passphrase']) {
+      form_error($form['passphrase'], t('Wrong passphrase.'));
+    }
+  }
   else {
     form_set_error('', t('This page is not password protected.'));
     $form = array();
-    $form['password'] = array('#markup' => t('Click !here to go back to home page.',array('!here' => l('here',''))));
+    $form['passphrase'] = array('#markup' => t('Click !here to go back to home page.', array('!here' => l('here', ''))));
   }
 }
-function passpath_protect_form_submit(&$form, &$form_state) {
-	$paths = variable_get('passpath_protected_paths', array());
+function passpage_protect_form_submit(&$form, &$form_state) {
+  $paths = variable_get('passpage_protected_paths', array());
   $dest = drupal_get_destination();
   if ($paths[$dest['destination']]['expire']) {
-  	user_cookie_save(array("passpath_expire_{$dest['destination']}" => strtotime("+ {$paths[$dest['destination']]['expire']} hours")));
-  } else {
-  	user_cookie_save(array("passpath_expire_{$dest['destination']}" => -1));
+    user_cookie_save(array("passpage_expire_{$dest['destination']}" => strtotime("+ {$paths[$dest['destination']]['expire']} hours")));
+  } 
+  else {
+    user_cookie_save(array("passpage_expire_{$dest['destination']}" => -1));
   }
 }

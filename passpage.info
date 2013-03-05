@@ -1,0 +1,11 @@
+name = Password protect drupal pages
+description = Password protect access to specific drupal pages for anonymous users.
+package = Access Control
+core = 7.x
+
+files[] = passpage.module
+files[] = passpage.admin.inc
+
+stylesheets[all][] = passpage.css
+
+scripts[] = passpage.js
