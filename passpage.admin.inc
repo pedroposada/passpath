@@ -48,8 +48,8 @@ function passpage_admin_form($form, &$form_state) {
         '#value' => t("Amount of time visitor will be able to access the page without re-entering the password. Set it to 0 for never. Use fractions for minutes i.e.: 0.25 equals 15 minutes."), 
         '#attributes' => array('class' => array('description'))))),
       '#field_suffix' => t('hour(s)'),
-      '#size' => 3,
-      '#maxlength' => 3,
+      '#size' => 4,
+      '#maxlength' => 4,
     );
     $element["weight"] = array(
       '#type' => 'weight',
@@ -109,7 +109,7 @@ function passpage_admin_form_validate($form, &$form_state) {
         if (!isset($var[$value['path']]) && empty($value['pass'])) {
           form_error($form['tabs'][$key]['pass'], t("Passphrase is required."));
         }
-        if (!ctype_digit($value['expire'])) {
+        if (!is_numeric($value['expire'])) {
           form_error($form['tabs'][$key]['expire'], t("Enter a number of hours."));
         }
         // prevent duplicates

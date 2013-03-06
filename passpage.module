@@ -4,21 +4,35 @@
  *  DRUPAL HOOKS
  ***********************/
 
+ 
 /**
  * Implements hook_init()
  */
 function passpage_init() {
-  $path = drupal_get_path_alias(current_path());
-  if (drupal_match_path($path, "passpage/protected")) {
-    $dest = drupal_get_destination();
-    $name = "Drupal_visitor_passpage_expire_{$dest['destination']}";
-    switch (TRUE) {
-      case !drupal_strlen($dest['destination']):
-      case !(isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): // expiration time reached.
-        break;
-      default:
-        drupal_goto($dest['destination']);
-        break;
+  if (user_is_anonymous()) {
+    if (drupal_match_path(drupal_get_path_alias(current_path()), "passpage/protected")) {
+      $dest = drupal_get_destination();
+      $name = "Drupal_visitor_passpage_expire_{$dest['destination']}";
+      switch (TRUE) {
+        case !drupal_strlen($dest['destination']):
+        case !(isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): // expiration time reached.
+          break;
+        default:
+          drupal_goto($dest['destination'], array(), 301); // Moved Permanently
+          break;
+      }
+    }
+    else {
+      $path = drupal_get_path_alias(current_path());
+      $name = "Drupal_visitor_passpage_expire_{$path}";
+      switch (TRUE) {
+        case (isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): // do not ask for password if expiration time not reached yet.
+        case (isset($_COOKIE[$name]) && ($_COOKIE[$name] < 0)): // do not ask for password if expiration time is never.
+          break;
+        case array_key_exists($path, variable_get('passpage_protected_paths', array())):
+          drupal_goto('passpage/protected', array('query' => array('destination' => $path)));
+          break;
+      }
     }
   }
 }
@@ -31,7 +45,7 @@ function passpage_menu() {
   $items = array();
   
   $items['admin/config/passpage'] = array(
-    'title' => 'Passphrase Protect Pages', 
+    'title' => 'Passphrase Protected Pages', 
     'description' => 'Administer password protected paths.', 
     'position' => 'left', 
     'weight' => -30, 
@@ -41,14 +55,14 @@ function passpage_menu() {
     'file' => 'system.admin.inc' 
   );
   $items['admin/config/passpage/manage'] = array(
-    'title' => 'Protect Pages',
+    'title' => 'Protected Pages',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('passpage_admin_form'),
     'access arguments' => array('administer paths'),
     'file' => 'passpage.admin.inc',
   );
   $items['admin/config/passpage/manage/features'] = array(
-    'title' => 'Protect Pages',
+    'title' => 'Protected Pages',
     'description' => 'Administer password protected paths.', 
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => 0, 
@@ -57,7 +71,7 @@ function passpage_menu() {
     'title' => 'Protected Page',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('passpage_protect_form'),  
-    'access callback' => TRUE,
+    'access callback' => 'user_is_anonymous',
     'type' => MENU_CALLBACK,
   );
   $items['passpage/path/autocomplete'] = array(
@@ -93,25 +107,6 @@ function passpage_theme($existing, $type, $theme, $path) {
   );
 }
 
-
-/**
- * Implements hook_page_delivery_callback_alter()
- */
-function passpage_page_delivery_callback_alter(&$callback) {
-  $dest = drupal_get_path_alias(current_path());
-  $name = "Drupal_visitor_passpage_expire_{$dest}";
-  switch (TRUE) {
-    case drupal_match_path($dest, "passpage/protected"): // stop infinite loop
-    case (isset($_COOKIE[$name]) && ($_COOKIE[$name] > REQUEST_TIME)): // do not ask for password if expiration time not reached yet.
-    case (isset($_COOKIE[$name]) && ($_COOKIE[$name] < 0)): // do not ask for password if expiration time is never.
-    case user_is_logged_in(): // anon users only
-      break;
-    case array_key_exists($dest, variable_get('passpage_protected_paths', array())):
-      drupal_goto('passpage/protected', array('query' => array('destination' => $dest)));
-      break;
-  }
-  
-}
 
 /***********************
  *  MENU CALLBACKS
@@ -224,8 +219,13 @@ function passpage_protect_form_validate(&$form, &$form_state) {
 function passpage_protect_form_submit(&$form, &$form_state) {
   $paths = variable_get('passpage_protected_paths', array());
   $dest = drupal_get_destination();
-  if ($paths[$dest['destination']]['expire']) {
-    user_cookie_save(array("passpage_expire_{$dest['destination']}" => strtotime("+ {$paths[$dest['destination']]['expire']} hours")));
+  if ($amount = $paths[$dest['destination']]['expire']) {
+    $unit = 'hours';
+    if ($paths[$dest['destination']]['expire'] < 1) {
+      $unit = 'minutes';
+      $amount = 60 * (float)$paths[$dest['destination']]['expire'];
+    }
+    user_cookie_save(array("passpage_expire_{$dest['destination']}" => strtotime("+ {$amount} {$unit}", REQUEST_TIME)));
   } 
   else {
     user_cookie_save(array("passpage_expire_{$dest['destination']}" => -1));
