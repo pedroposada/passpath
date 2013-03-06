@@ -1,0 +1,8 @@
+<?php
+
+/**
+ * Implements hook_uninstall()
+ */
+function passpage_uninstall() {
+  variable_del('passpage_protected_paths');
+}

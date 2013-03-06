@@ -1,5 +1,5 @@
 name = Passphrase protect drupal pages
-description = Password protect access to specific drupal pages for anonymous users.
+description = Passphrase protect access to specific drupal pages for anonymous users.
 package = Access Control
 core = 7.x
 
