@@ -45,7 +45,7 @@ function passpage_admin_form($form, &$form_state) {
       '#default_value' => isset($keys[$i]) ? $paths[$keys[$i]]['expire'] : 0,
       '#suffix' => theme('html_tag', array('element' => array(
         '#tag' => 'div', 
-        '#value' => t("Amount of time visitor will be able to access the page without re-entering the password. Set it to 0 for never. Use fractions for minutes i.e.: 0.25 equals 15 minutes."), 
+        '#value' => t("Password grace period. Enter 0 for infinity. Use fractions for minutes i.e.: 0.25 equals to 15 minutes."), 
         '#attributes' => array('class' => array('description'))))),
       '#field_suffix' => t('hour(s)'),
       '#size' => 4,
