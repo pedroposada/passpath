@@ -8,7 +8,7 @@ still be able to access private content.
 This module will only protect pages that are accessible to anonymous users. It 
 will not have any effect on authenticated users. 
 
-Has not effect on cached pages either.
+Has no effect on cached pages either.
 
 
 Sample use cases:
